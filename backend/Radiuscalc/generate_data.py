@@ -22,12 +22,12 @@ for shop_type in range(N_Types):
         x = np.random.normal(center[0], spread[0], N_points)
         y = np.random.normal(center[1], spread[1], N_points)
         
-        plt.scatter(x, y)
+        plt.scatter(x, y,color = ['red', 'green', 'blue'][shop_type])
         
         #  Save the data to a csv file
         data = pd.DataFrame({'x': x, 'y': y, 'shop_type': shop_type})
-        data.to_csv(f"shop_data_{shop_type}_{cluster}.csv", index=False)
+        data.to_csv(f"shop_data.csv", index=False)
         
-        
+plt.savefig("shop_data.png")        
 plt.show()
 
