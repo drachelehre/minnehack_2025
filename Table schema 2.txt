@@ -1,0 +1,25 @@
+Table schema
+
+User
+------
+ID (primary key)
+Name
+Address
+
+Location
+-----------
+ID (primary key)
+Name
+Business_type
+Website
+Address
+Coord_x
+Coord_y
+
+Tractions
+----------------
+ID (Primary key)
+UserID (references ID from user
+LocationID (references ID from location)
+Trans_time (Date)
+Trans_amount (Real)
