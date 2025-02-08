@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Local Business Finder</title>
+  <style>
+    /* Global styling */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #fff8f0;
+    }
+    header {
+      background-color: #FFA500;
+      color: white;
+      padding: 10px;
+      text-align: center;
+    }
+    header a {
+      color: white;
+      margin: 0 10px;
+      text-decoration: none;
+    }
+    /* Map container with a 5% margin */
+    #map-container {
+      margin: 5%;
+    }
+    /* Map styling */
+    #map {
+      width: 100%;
+      height: 300px;
+      border: 2px solid #FFA500;
+      border-radius: 10px;
+    }
+    /* Business list container */
+    #business-list {
+      margin: 20px auto;
+      max-width: 600px;
+      background-color: #ffffff;
+      border: 2px solid #FFA500;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      padding: 20px;
+      text-align: center;
+    }
+    #business-list h2 {
+      color: #FFA500;
+      margin-bottom: 15px;
+    }
+    .business-item {
+      padding: 10px;
+      margin: 5px 0;
+      border-bottom: 1px solid #f2f2f2;
+      color: #333;
+    }
+    .business-item:last-child {
+      border-bottom: none;
+    }
+    /* Pagination styling */
+    #pagination {
+      margin-top: 20px;
+      text-align: center;
+    }
+    #pagination button {
+      background-color: #FFA500;
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      margin: 0 5px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #pagination button:hover {
+      background-color: #e59400;
+    }
+    #pagination span {
+      font-size: 1em;
+      margin: 0 10px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <span>Welcome, {{ user.username }}!</span>
+    <a href="{{ url_for('logout') }}">Logout</a>
+  </header>
+  <div id="map-container">
+    <div id="map"></div>
+  </div>
+  <div id="business-list">
+    <h2>Local Businesses</h2>
+    <div id="listings"></div>
+    <!-- Pagination controls -->
+    <div id="pagination"></div>
+  </div>
+  
+  <!-- JavaScript to initialize the map and load businesses -->
+  <script>
+    let map;
+    // The current user's stored location (from the Flask user object)
+    const userPos = {
+      lat: parseFloat('{{ user.latitude }}'),
+      lng: parseFloat('{{ user.longitude }}')
+    };
+
+    // Initialize the Google Map using the user's stored location.
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: userPos,
+        zoom: 14
+      });
+      // Place a marker at the user's stored location.
+      new google.maps.Marker({
+        position: userPos,
+        map: map,
+        title: "Your Stored Location"
+      });
+      // Load the first page of businesses using the user's stored location.
+      loadBusinesses(userPos.lat, userPos.lng, 1);
+    }
+
+    // Load businesses from the Flask endpoint for the given page.
+    function loadBusinesses(lat, lng, page) {
+      fetch(`/businesses?lat=${lat}&lng=${lng}&page=${page}`)
+        .then(response => response.json())
+        .then(data => {
+          const listingsDiv = document.getElementById('listings');
+          listingsDiv.innerHTML = '';
+          data.businesses.forEach(business => {
+            createMarker(business, map);
+            const businessDiv = document.createElement('div');
+            businessDiv.className = 'business-item';
+            businessDiv.textContent = business.name;
+            listingsDiv.appendChild(businessDiv);
+          });
+          // Set up simple pagination: show "Previous" and "Next" buttons and page info.
+          const paginationDiv = document.getElementById('pagination');
+          paginationDiv.innerHTML = '';
+          if (data.current_page > 1) {
+            const prevButton = document.createElement('button');
+            prevButton.textContent = 'Previous';
+            prevButton.onclick = () => loadBusinesses(lat, lng, data.current_page - 1);
+            paginationDiv.appendChild(prevButton);
+          }
+          const pageInfo = document.createElement('span');
+          pageInfo.textContent = `Page ${data.current_page} / ${data.total_pages}`;
+          paginationDiv.appendChild(pageInfo);
+          if (data.current_page < data.total_pages) {
+            const nextButton = document.createElement('button');
+            nextButton.textContent = 'Next';
+            nextButton.onclick = () => loadBusinesses(lat, lng, data.current_page + 1);
+            paginationDiv.appendChild(nextButton);
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching businesses:', error);
+        });
+    }
+
+    // Create a marker on the map for a business.
+    function createMarker(business, mapInstance) {
+      if (!business.lat || !business.lng) return;
+      const marker = new google.maps.Marker({
+        map: mapInstance,
+        position: {lat: business.lat, lng: business.lng},
+        title: business.name
+      });
+      marker.addListener('click', function() {
+        const infowindow = new google.maps.InfoWindow({
+          content: business.name
+        });
+        infowindow.open(mapInstance, marker);
+      });
+    }
+  </script>
+  <!-- Load the Google Maps JavaScript API -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap"></script>
+</body>
+</html>
