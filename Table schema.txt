@@ -1,0 +1,16 @@
+Table schema
+
+User
+------
+ID (primary key)
+Name
+Address
+Score
+
+Location
+-----------
+ID (primary key)
+Name
+Address
+Coord_x
+Coord_y
