@@ -18,7 +18,7 @@ for shop_type in range(N_Types):
         #  The Cluster Centers need to spread randomly
         center = np.random.rand(2) * 100
         #  The Cluster Spread needs to be random
-        spread = np.random.rand(2) * 10
+        spread = np.random.rand(2) * 50
         x = np.random.normal(center[0], spread[0], N_points)
         y = np.random.normal(center[1], spread[1], N_points)
         
