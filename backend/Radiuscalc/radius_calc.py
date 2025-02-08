@@ -3,7 +3,7 @@ import numpy as np
 from scipy.spatial import distance
 
 # Load the data
-data = pd.read_csv('shop_data.csv')
+data = pd.read_csv('../../shop_data.csv')
 
 # User's location
 latitude = 20  # Replace with actual latitude
