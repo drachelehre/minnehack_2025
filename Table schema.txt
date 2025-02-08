@@ -11,6 +11,8 @@ Location
 -----------
 ID (primary key)
 Name
+Business_type
+Website
 Address
 Coord_x
 Coord_y
