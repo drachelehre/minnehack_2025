@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Register</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff8f0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .form-container {
+      background-color: #ffffff;
+      border: 2px solid #FFA500;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      width: 300px;
+    }
+    h2 {
+      color: #FFA500;
+      text-align: center;
+    }
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #FFA500;
+      color: white;
+      border: none;
+      padding: 10px;
+      width: 100%;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #e59400;
+    }
+    .message {
+      color: red;
+      text-align: center;
+    }
+    a {
+      color: #FFA500;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h2>Register</h2>
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="message">
+          {% for message in messages %}
+            <p>{{ message }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    <form method="post" action="{{ url_for('register') }}">
+      <input type="text" name="username" placeholder="Username" required>
+      <input type="password" name="password" placeholder="Password" required>
+      <!-- Home address input with autocomplete -->
+      <input type="text" id="home_address" name="home_address" placeholder="Home Address" required>
+      <button type="submit">Register</button>
+    </form>
+    <p style="text-align:center;">Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
+  </div>
+  
+  <!-- Load the Google Maps API with Places library for address autocomplete -->
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&callback=initAutocomplete">
+  </script>
+  <script>
+    function initAutocomplete() {
+      // Initialize the Google Places Autocomplete widget on the home_address input.
+      var input = document.getElementById('home_address');
+      new google.maps.places.Autocomplete(input);
+    }
+  </script>
+</body>
+</html>

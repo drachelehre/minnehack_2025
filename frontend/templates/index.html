@@ -10,160 +10,173 @@
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      background-color: #fff8f0;  /* Light, warm background */
+      background-color: #fff8f0;
     }
-
-    /* Container for the map with a 5% margin on all sides */
+    header {
+      background-color: #FFA500;
+      color: white;
+      padding: 10px;
+      text-align: center;
+    }
+    header a {
+      color: white;
+      margin: 0 10px;
+      text-decoration: none;
+    }
+    /* Map container with a 5% margin */
     #map-container {
       margin: 5%;
     }
-
     /* Map styling */
     #map {
       width: 100%;
       height: 300px;
-      border: 2px solid #FFA500;  /* Orange border */
+      border: 2px solid #FFA500;
       border-radius: 10px;
     }
-
-    /* Container for the local business list */
+    /* Business list container */
     #business-list {
       margin: 20px auto;
       max-width: 600px;
       background-color: #ffffff;
-      border: 2px solid #FFA500;  /* Orange theme border */
+      border: 2px solid #FFA500;
       border-radius: 10px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
       padding: 20px;
       text-align: center;
     }
-
     #business-list h2 {
-      color: #FFA500;  /* Orange themed heading */
+      color: #FFA500;
       margin-bottom: 15px;
     }
-
-    /* Styling for each business item */
     .business-item {
       padding: 10px;
       margin: 5px 0;
       border-bottom: 1px solid #f2f2f2;
       color: #333;
     }
-
-    /* Remove bottom border from the last item */
     .business-item:last-child {
       border-bottom: none;
+    }
+    /* Pagination styling */
+    #pagination {
+      margin-top: 20px;
+      text-align: center;
+    }
+    #pagination button {
+      background-color: #FFA500;
+      border: none;
+      color: white;
+      padding: 8px 12px;
+      margin: 0 5px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #pagination button:hover {
+      background-color: #e59400;
+    }
+    #pagination span {
+      font-size: 1em;
+      margin: 0 10px;
+      vertical-align: middle;
     }
   </style>
 </head>
 <body>
-  <!-- Map container with a 5% gap from all sides -->
+  <header>
+    <span>Welcome, {{ user.username }}!</span>
+    <a href="{{ url_for('logout') }}">Logout</a>
+  </header>
   <div id="map-container">
     <div id="map"></div>
   </div>
-  
-  <!-- Local Business List Container -->
   <div id="business-list">
     <h2>Local Businesses</h2>
     <div id="listings"></div>
+    <!-- Pagination controls -->
+    <div id="pagination"></div>
   </div>
-
-  <!-- JavaScript to initialize the map and list local businesses -->
+  
+  <!-- JavaScript to initialize the map and load businesses -->
   <script>
+    let map;
+    // The current user's stored location (from the Flask user object)
+    const userPos = {
+      lat: parseFloat('{{ user.latitude }}'),
+      lng: parseFloat('{{ user.longitude }}')
+    };
+
+    // Initialize the Google Map using the user's stored location.
     function initMap() {
-      // Check for geolocation support
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(position) {
-          const userPos = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-
-          // Create the map centered on the user's location
-          const map = new google.maps.Map(document.getElementById('map'), {
-            center: userPos,
-            zoom: 14
-          });
-
-          // Place a marker for the user's location
-          new google.maps.Marker({
-            position: userPos,
-            map: map,
-            title: "Your Location"
-          });
-
-          // Define the search radius (5 miles converted to meters)
-          const radiusMiles = 5;
-          const radiusMeters = radiusMiles * 1609.34;
-
-          // Set up the search request for nearby businesses
-          const request = {
-            location: userPos,
-            radius: radiusMeters,
-            keyword: 'business'
-          };
-
-          // Use the Places service to search for nearby businesses
-          const service = new google.maps.places.PlacesService(map);
-          service.nearbySearch(request, function(results, status) {
-            if (status === google.maps.places.PlacesServiceStatus.OK) {
-              const listingsDiv = document.getElementById('listings');
-              listingsDiv.innerHTML = '';  // Clear previous listings
-
-              results.forEach(place => {
-                // Create a marker for each business location
-                createMarker(place, map);
-
-                // Create and append a listing for the business
-                const businessDiv = document.createElement('div');
-                businessDiv.className = 'business-item';
-                businessDiv.textContent = place.name;
-                listingsDiv.appendChild(businessDiv);
-              });
-            } else {
-              console.error('Places service failed due to: ' + status);
-            }
-          });
-        }, function() {
-          // Handle geolocation error
-          handleLocationError(true);
-        });
-      } else {
-        // Browser doesn't support Geolocation
-        handleLocationError(false);
-      }
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: userPos,
+        zoom: 14
+      });
+      // Place a marker at the user's stored location.
+      new google.maps.Marker({
+        position: userPos,
+        map: map,
+        title: "Your Stored Location"
+      });
+      // Load the first page of businesses using the user's stored location.
+      loadBusinesses(userPos.lat, userPos.lng, 1);
     }
 
-    // Function to create a marker for a business
-    function createMarker(place, map) {
-      if (!place.geometry || !place.geometry.location) return;
+    // Load businesses from the Flask endpoint for the given page.
+    function loadBusinesses(lat, lng, page) {
+      fetch(`/businesses?lat=${lat}&lng=${lng}&page=${page}`)
+        .then(response => response.json())
+        .then(data => {
+          const listingsDiv = document.getElementById('listings');
+          listingsDiv.innerHTML = '';
+          data.businesses.forEach(business => {
+            createMarker(business, map);
+            const businessDiv = document.createElement('div');
+            businessDiv.className = 'business-item';
+            businessDiv.textContent = business.name;
+            listingsDiv.appendChild(businessDiv);
+          });
+          // Set up simple pagination: show "Previous" and "Next" buttons and page info.
+          const paginationDiv = document.getElementById('pagination');
+          paginationDiv.innerHTML = '';
+          if (data.current_page > 1) {
+            const prevButton = document.createElement('button');
+            prevButton.textContent = 'Previous';
+            prevButton.onclick = () => loadBusinesses(lat, lng, data.current_page - 1);
+            paginationDiv.appendChild(prevButton);
+          }
+          const pageInfo = document.createElement('span');
+          pageInfo.textContent = `Page ${data.current_page} / ${data.total_pages}`;
+          paginationDiv.appendChild(pageInfo);
+          if (data.current_page < data.total_pages) {
+            const nextButton = document.createElement('button');
+            nextButton.textContent = 'Next';
+            nextButton.onclick = () => loadBusinesses(lat, lng, data.current_page + 1);
+            paginationDiv.appendChild(nextButton);
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching businesses:', error);
+        });
+    }
 
+    // Create a marker on the map for a business.
+    function createMarker(business, mapInstance) {
+      if (!business.lat || !business.lng) return;
       const marker = new google.maps.Marker({
-        map: map,
-        position: place.geometry.location
+        map: mapInstance,
+        position: {lat: business.lat, lng: business.lng},
+        title: business.name
       });
-
-      // Optional: add an info window for marker clicks
       marker.addListener('click', function() {
         const infowindow = new google.maps.InfoWindow({
-          content: place.name
+          content: business.name
         });
-        infowindow.open(map, marker);
+        infowindow.open(mapInstance, marker);
       });
     }
-
-    // Handle geolocation errors
-    function handleLocationError(browserHasGeolocation) {
-      alert(browserHasGeolocation
-        ? 'Error: The Geolocation service failed.'
-        : 'Error: Your browser doesn\'t support geolocation.');
-    }
   </script>
-
-  <!-- Load the Google Maps JavaScript API using the API key from the config -->
-  <script async defer
-    src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=places&callback=initMap">
-  </script>
+  <!-- Load the Google Maps JavaScript API -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap"></script>
 </body>
 </html>
