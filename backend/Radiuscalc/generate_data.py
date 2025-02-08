@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 N_Types = 3
 N_clusters = 2
 
+# data = pd.DataFrame({'x': x, 'y': y, 'shop_type': shop_type})
+data = pd.DataFrame(columns=['x', 'y', 'shop_type'])
+
 for shop_type in range(N_Types):
     # Create 2 gaussian clusters for each shop type with 60% and 40% of the points
     for cluster in range(N_clusters):
@@ -25,9 +28,11 @@ for shop_type in range(N_Types):
         plt.scatter(x, y,color = ['red', 'green', 'blue'][shop_type])
         
         #  Save the data to a csv file
-        data = pd.DataFrame({'x': x, 'y': y, 'shop_type': shop_type})
-        data.to_csv(f"shop_data.csv", index=False)
+        data = pd.concat([data, pd.DataFrame({'x': x, 'y': y, 'shop_type': shop_type})])
+        # (pd.DataFrame({'x': x, 'y': y, 'shop_type': shop_type}))
+        # data.to_csv(f"shop_data.csv", index=False)
         
+data.to_csv(f"shop_data.csv", index=False)       
 plt.savefig("shop_data.png")        
 plt.show()
 
