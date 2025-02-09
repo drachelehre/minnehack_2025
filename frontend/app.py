@@ -131,7 +131,7 @@ def index():
 def fetch_businesses(lat: float, lng: float, required_count: int):
     all_results = []
     # Define a search radius (5 miles in meters)
-    radius = int(5 * 1609.34)
+    radius = int(2 * 1609.34)
     response = gmaps.places_nearby(
         location=(lat, lng),
         radius=radius,
