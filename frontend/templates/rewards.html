@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rewards</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f9f9f9;
+    }
+    .navbar {
+      background-color: #FFA500;
+    }
+    .navbar-brand, .nav-link {
+      color: #fff !important;
+    }
+    .reward-item {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background-color: #fff;
+      padding: 15px;
+      margin-bottom: 20px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .reward-item img {
+      max-width: 100%;
+      height: auto;
+      margin-bottom: 10px;
+    }
+    .reward-item h5 {
+      color: #FFA500;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-md navbar-dark">
+    <a class="navbar-brand" href="{{ url_for('index') }}">Local Business Finder</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ml-auto">
+         <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+         </li>
+         <li class="nav-item">
+            <span class="nav-link">Welcome, {{ current_user.username }} (Stars: {{ current_user.total_stars }})</span>
+         </li>
+         <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('rewards') }}">Rewards</a>
+         </li>
+         <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+         </li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Main Container -->
+  <div class="container mt-4">
+    <h2 class="mb-4 text-center">Available Rewards</h2>
+    <div class="row">
+      {% for item in reward_items %}
+      <div class="col-md-4 col-sm-6 mb-3">
+         <div class="reward-item">
+             <img src="{{ item.image_url }}" alt="{{ item.name }}">
+             <h5>{{ item.name }}</h5>
+             <p>{{ item.description }}</p>
+             <p><strong>Cost: {{ item.cost }} Stars</strong></p>
+         </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  
+  <!-- Bootstrap JS (and its dependencies) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

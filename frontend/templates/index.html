@@ -20,7 +20,6 @@
     .navbar-brand {
       font-weight: bold;
     }
-    /* Header user info */
     .user-info {
       font-size: 1rem;
     }
@@ -37,11 +36,11 @@
         height: 300px;
       }
     }
-    /* Card styling for business list and quests */
-    .business-card, .quest-card {
+    /* Card styling for business list, quests, and ads */
+    .business-card, .quest-card, .ad-card {
       border: none;
       border-radius: 10px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
       margin-bottom: 20px;
     }
     .card-header {
@@ -89,22 +88,71 @@
       height: auto;
       max-width: 150px;
     }
+    /* Modal styles */
+    .modal-header, .modal-footer {
+      border: none;
+    }
+    .captcha-img, .video-container iframe {
+      max-width: 100%;
+      max-height: 80px;
+      object-fit: contain;
+      border: 1px solid #ccc;
+      margin-bottom: 5px;
+    }
+    .captcha-block {
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    .captcha-block input {
+      width: 80%;
+      padding: 5px;
+      margin-top: 5px;
+    }
+    .modal-error {
+      color: red;
+      text-align: center;
+      display: none;
+    }
+    /* Video modal styling */
+    .video-modal-dialog {
+      max-width: 90%; /* or use Bootstrap’s modal-xl which is ~1140px wide */
+    }
+    
+    .video-container {
+      position: relative;
+      /* remove height: 300px; */
+      padding-bottom: 30.25%; /* 16:9 ratio = 100 * 9/16 */
+      height: 900;
+      overflow: hidden;
+    }
+    .video-container iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    
+
+    
   </style>
 </head>
 <body>
-  <!-- Responsive Navbar -->
+  <!-- Navbar with navlinks -->
   <nav class="navbar navbar-expand-md navbar-dark sticky-top">
-    <a class="navbar-brand" href="#">Local Business Finder</a>
+    <a class="navbar-brand" href="{{ url_for('index') }}">Local Business Finder</a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav ml-auto">
         <li class="nav-item user-info">
-          <!-- Show the username and total stars -->
           <span class="nav-link">
             Welcome, {{ user.username }} (Total Stars: {{ user.total_stars }})
           </span>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('rewards') }}">Rewards</a>
         </li>
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
@@ -113,10 +161,10 @@
     </div>
   </nav>
 
-  <!-- Main Container with Left Ad, Main Content, and Right Ad -->
+  <!-- Main Container with Ad Spaces -->
   <div class="container mt-4">
     <div class="row">
-      <!-- Left Ad Column: Visible on md and up -->
+      <!-- Left Ad Column (visible on md and up) -->
       <div class="col-md-2 d-none d-md-block">
         <div class="ad-space">
           <h5>Ad Space</h5>
@@ -134,9 +182,7 @@
             <h4 class="mb-0">Local Businesses</h4>
           </div>
           <div class="card-body">
-            <!-- Responsive Table Container -->
             <div class="table-responsive" id="listings"></div>
-            <!-- Pagination Controls -->
             <nav>
               <ul id="pagination" class="pagination"></ul>
             </nav>
@@ -159,15 +205,27 @@
               <tbody>
                 <tr>
                   <td>Visit one new place this week</td>
-                  <!-- For dummy purposes, we display a fixed status (0/1). Update later with real logic. -->
                   <td>0/1</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
+
+        <!-- Additional Ad Space Below Data Tables -->
+        <div class="card ad-card">
+          <div class="card-header">
+            <h4 class="mb-0">Sponsored</h4>
+          </div>
+          <div class="card-body">
+            <div class="ad-space">
+              <h5>Ad Space</h5>
+              <img src="https://via.placeholder.com/300x100?text=Bottom+Ad" alt="Bottom Ad">
+            </div>
+          </div>
+        </div>
       </div>
-      <!-- Right Ad Column: Visible on md and up -->
+      <!-- Right Ad Column (visible on md and up) -->
       <div class="col-md-2 d-none d-md-block">
         <div class="ad-space">
           <h5>Ad Space</h5>
@@ -176,6 +234,44 @@
       </div>
     </div>
   </div>
+
+ <!-- Video Modal -->
+<div class="modal fade" id="videoModal" tabindex="-1" role="dialog"
+aria-labelledby="videoModalLabel" aria-hidden="true" 
+data-backdrop="static" data-keyboard="false">
+<div class="modal-dialog modal-dialog-centered" role="document">
+<div class="modal-content">
+ 
+ <div class="modal-header">
+   <h5 class="modal-title" id="videoModalLabel">Watch this video</h5>
+ </div>
+ 
+ <div class="modal-body">
+   <div class="video-container">
+     <!-- YouTube player goes here -->
+     <div id="player"></div>
+   </div>
+ </div>
+
+ <div class="modal-footer">
+   <!-- Skip button is initially disabled -->
+   <button type="button" id="skipVideo" class="btn btn-secondary" disabled>
+     Skip Video
+   </button>
+   <!-- Small progress bar that fills for 3 seconds -->
+   <div class="progress ml-3" style="width: 100px; height: 6px;">
+     <div class="progress-bar" id="skipProgressBar" 
+          role="progressbar"
+          style="width: 0%; transition: width 0.1s linear;"
+          aria-valuemin="0" aria-valuemax="100">
+     </div>
+   </div>
+ </div>
+
+</div>
+</div>
+</div>
+
 
   <!-- Modal for Business Details & Review -->
   <div class="modal fade" id="businessModal" tabindex="-1" role="dialog" aria-labelledby="businessModalLabel" aria-hidden="true">
@@ -231,7 +327,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-            <!-- Instead of immediate submission, we intercept the button's click -->
+            <!-- Submit Review button; submission is intercepted to show review captcha -->
             <button type="submit" id="submitReviewBtn" class="btn btn-primary">Submit Review</button>
           </div>
         </div>
@@ -248,17 +344,14 @@
         </div>
         <div class="modal-body">
           <p class="text-center">Please complete the captcha below to submit your review:</p>
-          <!-- Captcha Block for Google -->
           <div class="captcha-block">
             <img class="captcha-img" src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg" alt="Google">
             <input type="text" id="reviewCaptcha1" placeholder="Enter brand name">
           </div>
-          <!-- Captcha Block for Amazon -->
           <div class="captcha-block">
             <img class="captcha-img" src="https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg" alt="Amazon">
             <input type="text" id="reviewCaptcha2" placeholder="Enter brand name">
           </div>
-          <!-- Captcha Block for Meta -->
           <div class="captcha-block">
             <img class="captcha-img" src="https://upload.wikimedia.org/wikipedia/commons/7/7b/Meta_Platforms_Inc._logo.svg" alt="Meta">
             <input type="text" id="reviewCaptcha3" placeholder="Enter brand name">
@@ -272,21 +365,122 @@
     </div>
   </div>
 
+  <!-- Include YouTube IFrame API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
   <!-- jQuery, Popper.js, and Bootstrap JS (using CDN) -->
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
   
   <script>
-    // Initialize Google Places Autocomplete on the home_address input.
-    function initAutocomplete() {
-      var input = document.getElementById('home_address');
-      new google.maps.places.Autocomplete(input);
+    // Global variable to store the selected business data.
+    let selectedBusiness = null;
+    // Global variable for the YouTube player.
+    let player;
+
+    // This function is called by the YouTube API once it's ready.
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('player', {
+        height: '315',
+        width: '560',
+        videoId: '5KdE0p2joJw', // or your own video ID
+        playerVars: {
+          'autoplay': 1,
+          'controls': 1
+        },
+        events: {
+          'onStateChange': onPlayerStateChange
+        }
+      });
     }
+    
+    // When the video ends (state 0), call finishVideo().
+    function onPlayerStateChange(event) {
+      if (event.data === YT.PlayerState.ENDED) {
+        finishVideo();
+      }
+    }
+  
+    // This function hides the video modal and shows the review modal.
+    function finishVideo() {
+      $("#videoModal").modal("hide");
+      $("#businessModal").modal("show");
+    }
+  
+    // When the document is ready, bind the skip button.
+    $(document).ready(function() {
+      // Bind the click event to the skip button.
+      $("#skipVideo").click(function(){
+        finishVideo();
+      });
+    });
+    
+
+    // When the video ends (state 0), finish and show the review modal.
 
     // When the document is ready...
     $(document).ready(function() {
-      // Intercept the submission of the review form.
+      // Override the showBusinessModal to first show the video modal.
+      window.showBusinessModal = function(business) {
+        // Save the business object.
+        selectedBusiness = business;
+        // Populate the business modal fields with the data.
+        document.getElementById("modalLocationId").value = business.location_id || "";
+        document.getElementById("modalBusinessName").value = business.name || "";
+        document.getElementById("modalBusinessType").value = business.type || "";
+        document.getElementById("modalDistance").value = business.distance ? parseFloat(business.distance).toFixed(1) : "";
+        const visitedCheckbox = document.getElementById("visitedCheckbox");
+        const distance = parseFloat(business.distance);
+        if (!isNaN(distance) && distance <= visitThreshold) {
+          visitedCheckbox.disabled = false;
+        } else {
+          visitedCheckbox.disabled = true;
+          visitedCheckbox.checked = false;
+        }
+        document.getElementById("photoUpload").value = "";
+        document.getElementById("reviewRating").value = "";
+        document.getElementById("review_captcha_response").value = "";
+        // Show the video modal first.
+        $("#videoModal").modal({backdrop: 'static', keyboard: false});
+        $(document).ready(function() {
+          // When the video modal is shown:
+          $('#videoModal').on('shown.bs.modal', function() {
+            // Reset the skip button and progress bar
+            $('#skipVideo').prop('disabled', true);
+            const $progressBar = $('#skipProgressBar');
+            $progressBar.css('width', '0%');
+        
+            let progress = 0;
+            const totalTime = 3000; // 3 seconds
+            const intervalTime = 100; // update every 100ms
+            const increment = 100 / (totalTime / intervalTime);
+        
+            const timer = setInterval(() => {
+              progress += increment;
+              $progressBar.css('width', progress + '%');
+        
+              if (progress >= 100) {
+                clearInterval(timer);
+                $('#skipVideo').prop('disabled', false);
+              }
+            }, intervalTime);
+          });
+        
+          // Skip button click event (if you want to close modal or do something else)
+          $("#skipVideo").click(function(){
+            finishVideo(); // or your own function that closes the modal, etc.
+          });
+        });
+        
+        // (If needed, you can also cue the video again.)
+        if (player && typeof player.loadVideoById === "function") {
+          player.loadVideoById({videoId: '5KdE0p2joJw'}); 
+        }
+        
+      
+      };
+
+      // Intercept submission of the review (transaction) form.
       $(document).on("submit", "#transactionForm", function(event) {
         event.preventDefault();
         console.log("Intercepted review form submission; showing review captcha modal.");
@@ -294,9 +488,8 @@
       });
       
       // When the "Solve Captchas" button in the review captcha modal is clicked,
-      // set the hidden review captcha field and then submit the form.
+      // mark the review captcha as solved and then submit the transaction form.
       $("#verifyReviewCaptcha").click(function() {
-        // Dummy logic: always accept the review captcha.
         $("#review_captcha_response").val("solved");
         $("#reviewCaptchaModal").modal("hide");
         console.log("Review captcha solved; submitting review form.");
@@ -305,27 +498,21 @@
     });
     
     let map;
-    // User's stored location from Flask.
     const userPos = {
       lat: parseFloat('{{ user.latitude }}'),
       lng: parseFloat('{{ user.longitude }}')
     };
 
-    // Global variables for data and pagination.
     let allBusinesses = [];
     let filteredBusinesses = [];
     let currentPage = 1;
     const perPage = 10;
     let totalPages = 0;
-    // Global variables for multi-select filter.
     let allTypes = [];
-    let selectedTypes = []; // array of currently selected types
-
-    // Define a threshold (in miles) for enabling the "visited" checkbox.
-    const visitThreshold = 5.0; // change this value as needed
+    let selectedTypes = [];
+    const visitThreshold = 5.0;
     document.getElementById('visitThresholdDisplay').textContent = visitThreshold;
 
-    // Fetch the complete list of businesses.
     function fetchAllBusinesses() {
       fetch('/businesses_all', {
         method: 'POST',
@@ -335,7 +522,6 @@
       .then(response => response.json())
       .then(data => {
         allBusinesses = data.businesses;
-        // Compute all distinct types and sort them.
         const typesSet = new Set();
         allBusinesses.forEach(business => {
           if (business.type) {
@@ -343,13 +529,10 @@
           }
         });
         allTypes = Array.from(typesSet).sort();
-        // By default, select all types.
         selectedTypes = allTypes.slice();
-        // Initially, all businesses are shown.
         filteredBusinesses = allBusinesses;
         totalPages = Math.ceil(filteredBusinesses.length / perPage);
         renderPage(1);
-        // Add markers for each business.
         filteredBusinesses.forEach(business => {
           createMarker(business, map);
         });
@@ -357,7 +540,6 @@
       .catch(error => console.error("Error fetching businesses:", error));
     }
 
-    // Update the global selectedTypes from the checkboxes.
     function updateSelectedTypes() {
       const checkboxes = document.querySelectorAll('.dropdown-item input[type="checkbox"]');
       selectedTypes = [];
@@ -369,10 +551,8 @@
       applyMultiFilter();
     }
 
-    // Filter businesses based on the selected types.
     function applyMultiFilter() {
       if (selectedTypes.length === 0 || selectedTypes.length === allTypes.length) {
-        // If none or all are selected, show all businesses.
         filteredBusinesses = allBusinesses;
       } else {
         filteredBusinesses = allBusinesses.filter(business => selectedTypes.includes(business.type));
@@ -382,7 +562,6 @@
       renderPage(currentPage);
     }
 
-    // Render a specific page from the filtered data.
     function renderPage(page) {
       currentPage = page;
       const start = (page - 1) * perPage;
@@ -392,7 +571,6 @@
       renderPagination();
     }
 
-    // Render the table. Each row gets a click event that shows the business modal.
     function renderTable(businesses) {
       const listingsDiv = document.getElementById("listings");
       listingsDiv.innerHTML = "";
@@ -400,72 +578,53 @@
         listingsDiv.textContent = "No businesses found.";
         return;
       }
-      
       const table = document.createElement("table");
       table.className = "table table-hover table-striped table-bordered mb-0";
       const thead = document.createElement("thead");
       const headerRow = document.createElement("tr");
-
-      // Column 1: Business Name.
       const thName = document.createElement("th");
       thName.textContent = "Business Name";
       thName.style.verticalAlign = "middle";
       headerRow.appendChild(thName);
-
-      // Column 2: Type.
       const thType = document.createElement("th");
       thType.textContent = "Type";
       thType.style.verticalAlign = "middle";
       headerRow.appendChild(thType);
-
-      // Column 3: Distance.
       const thDistance = document.createElement("th");
       thDistance.textContent = "Distance (miles)";
       thDistance.style.verticalAlign = "middle";
       headerRow.appendChild(thDistance);
-
-      // Column 4: Stars.
       const thStars = document.createElement("th");
       thStars.textContent = "Stars";
       thStars.style.verticalAlign = "middle";
       headerRow.appendChild(thStars);
-
       thead.appendChild(headerRow);
       table.appendChild(thead);
-
       const tbody = document.createElement("tbody");
       businesses.forEach(business => {
         const row = document.createElement("tr");
-        // Attach business data to the row for later retrieval.
         row.dataset.business = JSON.stringify(business);
-        // When the row is clicked, show the modal with details.
         row.addEventListener("click", function() {
           showBusinessModal(JSON.parse(this.dataset.business));
         });
-
         const tdName = document.createElement("td");
         tdName.textContent = business.name || "";
         row.appendChild(tdName);
-
         const tdType = document.createElement("td");
         tdType.textContent = business.type || "";
         row.appendChild(tdType);
-
         const tdDistance = document.createElement("td");
         tdDistance.textContent = business.distance ? parseFloat(business.distance).toFixed(1) : "";
         row.appendChild(tdDistance);
-
         const tdStars = document.createElement("td");
         tdStars.innerHTML = business.stars || "☆☆☆";
         row.appendChild(tdStars);
-
         tbody.appendChild(row);
       });
       table.appendChild(tbody);
       listingsDiv.appendChild(table);
     }
 
-    // Render Bootstrap pagination.
     function renderPagination() {
       const paginationUl = document.getElementById("pagination");
       paginationUl.innerHTML = "";
@@ -506,34 +665,6 @@
       }
     }
 
-    // Show the modal for the selected business.
-    function showBusinessModal(business) {
-      // Populate modal fields.
-      document.getElementById("modalLocationId").value = business.location_id || "";
-      document.getElementById("modalBusinessName").value = business.name || "";
-      document.getElementById("modalBusinessType").value = business.type || "";
-      document.getElementById("modalDistance").value = business.distance ? parseFloat(business.distance).toFixed(1) : "";
-
-      // Enable or disable the visited checkbox based on distance.
-      const visitedCheckbox = document.getElementById("visitedCheckbox");
-      const distance = parseFloat(business.distance);
-      if (!isNaN(distance) && distance <= visitThreshold) {
-        visitedCheckbox.disabled = false;
-      } else {
-        visitedCheckbox.disabled = true;
-        visitedCheckbox.checked = false;
-      }
-
-      // Clear any previous file input, review selection, or review captcha.
-      document.getElementById("photoUpload").value = "";
-      document.getElementById("reviewRating").value = "";
-      document.getElementById("review_captcha_response").value = "";
-
-      // Show the business details modal.
-      $("#businessModal").modal("show");
-    }
-
-    // Create a marker on the map for a business.
     function createMarker(business, mapInstance) {
       if (!business.latitude || !business.longitude) return;
       const marker = new google.maps.Marker({
@@ -542,12 +673,10 @@
         title: business.name
       });
       marker.addListener("click", function () {
-        // When marker is clicked, show the modal as well.
         showBusinessModal(business);
       });
     }
 
-    // Initialize the Google Map and fetch business data.
     function initMap() {
       map = new google.maps.Map(document.getElementById("map"), {
         center: userPos,
@@ -563,7 +692,7 @@
       fetchAllBusinesses();
     }
   </script>
-
+  
   <!-- Google Maps JavaScript API -->
   <script async defer src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap"></script>
 </body>
