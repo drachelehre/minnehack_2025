@@ -9,6 +9,7 @@ from utils.fetch_data import get_nearby_businesses
 from utils.radius_calc import find_radius
 from geopy.distance import geodesic
 import pandas as pd
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key_here'  # Replace with a strong secret key.
@@ -146,6 +147,27 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
+# ----------------------------
+# Add Transaction Endpoint (Protected)
+# ----------------------------
+@app.route("/add-transaction", methods=["GET", "POST"])
+@login_required
+def add_transaction():
+    if request.method == "POST":
+        location_id = request.form.get("location_id")
+        # The Trasnamount is from 1, 2 or 3 
+        # add to the Transaction table with date and time, user id and location id
+        user_id = request.form.get("user_id")
+        transaction_amount = request.form.get("transaction_amount")
+        time_of_transaction = datetime.now()
+        
+        new_transaction = Transaction(user_id=user_id,
+                                        location_id=location_id,
+                                        trans_time=time_of_transaction,
+                                        trans_amount= transaction_amount)
+                                        
+        
+        
 # ----------------------------
 # Homepage (Protected)
 # ----------------------------
