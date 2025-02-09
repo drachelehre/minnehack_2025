@@ -174,21 +174,27 @@ def businesses():
 
     # Fetch nearby businesses using the stored coordinates.
     results = fetch_businesses(lat, lng, required_count)
+    # print(results)
     total_results = len(results)
     total_pages = (total_results + per_page - 1) // per_page
 
     start = (page - 1) * per_page
     end = start + per_page
-    page_results = results[start:end]
+    page_results = results[start:end].to_dict(orient='records')
+    
+    print(page_results)
 
     formatted = []
-    # for business in page_results:
-    #     loc = business.get("geometry", {}).get("location", {})
-    #     formatted.append({
-    #         "name": business.get("name"),
-    #         "lat": loc.get("lat"),
-    #         "lng": loc.get("lng")
-    #     })
+    for business in page_results:
+            formatted.append({
+                "name": business['name'],
+                "address": business['address'],
+                "type": business['type'],
+                "latitude": business['latitude'],
+                "longitude": business['longitude'],
+                "distance": business['distance']
+            })
+        
 
     return jsonify({
         "businesses": formatted,
