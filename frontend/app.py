@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 from utils.fetch_data import get_nearby_businesses
 from utils.radius_calc import find_radius
-from geopy.distance import geodesic
+
 import pandas as pd
 from datetime import datetime
 
@@ -228,9 +228,11 @@ def businesses():
 
     start = (page - 1) * per_page
     end = start + per_page
-    page_results = results[start:end].to_dict(orient='records')
+    results.to_csv('df.csv')
     
-    print(page_results)
+    page_results = results[start:end].to_dict(orient='records')
+    print(f'page number: {page}')
+    # print(page_results)
 
     formatted = []
     for business in page_results:
@@ -250,6 +252,55 @@ def businesses():
         "total_pages": total_pages,
         "total_results": total_results
     })
+
+@app.route("/businesses_table", methods=["GET"])
+@login_required
+def businesses_table():
+    # Retrieve the current user's stored latitude and longitude.
+    lat = current_user.latitude
+    lng = current_user.longitude
+    
+    # Set a required count (you can adjust this as needed).
+    required_count = 50
+    
+    # Fetch nearby businesses; note that fetch_businesses returns a DataFrame.
+    df = fetch_businesses(lat, lng, required_count)
+    df.to_csv('df.csv')
+    # Optionally, you can sort or filter the DataFrame here.
+    # For example: df = df.sort_values('distance')
+    
+    # Convert the DataFrame to an HTML table.
+    # You can pass CSS classes to style it (here we use Bootstrap classes).
+    table_html = df.to_html(classes="table table-striped", index=False)
+    
+    # Render the table in a template.
+    return render_template("businesses_table.html", table_html=table_html)
+
+@app.route("/businesses_all", methods=["POST"])
+@login_required
+def businesses_all():
+    data = request.get_json()
+    user_id = data.get("user_id")
+    if not user_id or int(user_id) != current_user.id:
+        return jsonify({"error": "Invalid user id"}), 400
+
+    lat = current_user.latitude
+    lng = current_user.longitude
+    # Set required_count to a high number to get all nearby businesses.
+    required_count = 1000  
+    # fetch_businesses returns a DataFrame of results.
+    results = fetch_businesses(lat, lng, required_count)
+    # Format each business as needed.
+    formatted = []
+    for business in results.to_dict(orient='records'):
+        formatted.append({
+            "name": business['name'],
+            "distance": business['distance'],
+            "latitude": business['latitude'],   # for marker placement
+            "longitude": business['longitude'],  # for marker placement
+            "type": business['type']
+        })
+    return jsonify({"businesses": formatted})
 
 
 if __name__ == '__main__':
