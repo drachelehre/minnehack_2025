@@ -6,6 +6,9 @@ from flask_login import LoginManager, UserMixin, login_user, logout_user, login_
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from utils.fetch_data import get_nearby_businesses
+from utils.radius_calc import find_radius
+from geopy.distance import geodesic
+import pandas as pd
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key_here'  # Replace with a strong secret key.
@@ -135,11 +138,15 @@ def fetch_businesses(lat: float, lng: float, required_count: int):
     # Define a search radius (2 miles in meters)
     radius = int(5 * 1609.34)
     response = get_nearby_businesses(lat, lng, radius=radius)
-    
-    if not response:
-        raise Exception("Error fetching businesses.")
 
-    return response
+    best_radius, counts , n_df= find_radius((lat, lng), response, threshold=17)
+    
+    print(f"Best radius: {best_radius}")
+    print(f"Counts within radius: {counts.sum()}")
+    # threshold the response with the best radius
+    
+    return n_df
+
     
 # ----------------------------
 # Endpoint: Paginated Business Listings (Protected)
@@ -175,13 +182,13 @@ def businesses():
     page_results = results[start:end]
 
     formatted = []
-    for business in page_results:
-        loc = business.get("geometry", {}).get("location", {})
-        formatted.append({
-            "name": business.get("name"),
-            "lat": loc.get("lat"),
-            "lng": loc.get("lng")
-        })
+    # for business in page_results:
+    #     loc = business.get("geometry", {}).get("location", {})
+    #     formatted.append({
+    #         "name": business.get("name"),
+    #         "lat": loc.get("lat"),
+    #         "lng": loc.get("lng")
+    #     })
 
     return jsonify({
         "businesses": formatted,

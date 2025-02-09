@@ -1,6 +1,7 @@
 import requests
 import numpy as np 
 from geopy.distance import geodesic
+import pandas as pd
 
 def get_nearby_businesses(latitude, longitude, radius=1000):
     """
@@ -43,7 +44,7 @@ def get_nearby_businesses(latitude, longitude, radius=1000):
         print("Error: No results found or API error")
         return []
 
-    businesses = []
+    businesses = pd.DataFrame(columns=["name", "address", "type", "latitude", "longitude", "distance"])
     for element in data["elements"]:
         tags = element.get("tags", {})
         name = tags.get("name", "Unknown Name")
@@ -54,15 +55,12 @@ def get_nearby_businesses(latitude, longitude, radius=1000):
         dist = geodesic((latitude,longitude),(lat,lon)).miles # Distance in meters
         
         # print(dist)
-        businesses.append({
-            "name": name,
-            "address": address,
-            "type": business_type,
-            "latitude": lat,
-            "longitude": lon,
-            "distance": dist
-        })
+        businesses = pd.concat([businesses, pd.DataFrame([[name, address, business_type, lat, lon, dist]], columns=businesses.columns)], ignore_index=True)
+
     # print(data["elements"][0])
+    # Sort buisnesses by distance
+    businesses = businesses.sort_values(by='distance').reset_index(drop=True)
+    
     return businesses
 
 
