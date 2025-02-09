@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key_here'  # Replace with a strong secret key.
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mhdatabase2'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize the database and login manager.
@@ -151,22 +151,28 @@ def fetch_businesses(lat: float, lng: float, required_count: int):
 # ----------------------------
 # Endpoint: Paginated Business Listings (Protected)
 # ----------------------------
-@app.route("/businesses")
+@app.route("/businesses", methods=["POST"])
 @login_required
 def businesses():
+    data = request.get_json()
+    user_id = data.get("user_id")
     try:
-        lat = float(request.args.get("lat"))
-        lng = float(request.args.get("lng"))
-    except (TypeError, ValueError):
-        return jsonify({"error": "Invalid latitude or longitude"}), 400
-
-    try:
-        page = int(request.args.get("page", 1))
-    except ValueError:
+        page = int(data.get("page", 1))
+    except (ValueError, TypeError):
         page = 1
+
+    # Validate that the user_id in the payload matches the logged-in user.
+    if not user_id or int(user_id) != current_user.id:
+        return jsonify({"error": "Invalid user id"}), 400
+
+    # Retrieve the current user's stored latitude and longitude.
+    lat = current_user.latitude
+    lng = current_user.longitude
 
     per_page = 10
     required_count = page * per_page
+
+    # Fetch nearby businesses using the stored coordinates.
     results = fetch_businesses(lat, lng, required_count)
     total_results = len(results)
     total_pages = (total_results + per_page - 1) // per_page
@@ -190,6 +196,7 @@ def businesses():
         "total_pages": total_pages,
         "total_results": total_results
     })
+
 
 if __name__ == '__main__':
     with app.app_context():
