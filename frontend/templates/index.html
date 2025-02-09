@@ -20,6 +20,10 @@
     .navbar-brand {
       font-weight: bold;
     }
+    /* Header user info */
+    .user-info {
+      font-size: 1rem;
+    }
     /* Map styling */
     #map {
       width: 100%;
@@ -33,8 +37,8 @@
         height: 300px;
       }
     }
-    /* Business card styling */
-    .business-card {
+    /* Card styling for business list and quests */
+    .business-card, .quest-card {
       border: none;
       border-radius: 10px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -43,8 +47,6 @@
     .card-header {
       background-color: #FFA500;
       color: #fff;
-      border-top-left-radius: 10px;
-      border-top-right-radius: 10px;
       text-align: center;
     }
     .card-body {
@@ -73,14 +75,19 @@
       background-color: #e59400;
       color: #fff;
     }
-    /* Dropdown checkbox styling (if you use the multi‑select combobox) */
-    .dropdown-menu {
-      max-height: 200px;
-      overflow-y: auto;
+    /* Dummy ad styling */
+    .ad-space {
+      background-color: #f0f0f0;
+      padding: 10px;
+      margin-bottom: 20px;
+      text-align: center;
+      border: 1px solid #ccc;
+      border-radius: 4px;
     }
-    .dropdown-item label {
-      margin-bottom: 0;
-      margin-left: 5px;
+    .ad-space img {
+      width: 100%;
+      height: auto;
+      max-width: 150px;
     }
   </style>
 </head>
@@ -93,8 +100,11 @@
     </button>
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav ml-auto">
-        <li class="nav-item">
-          <span class="nav-link">Welcome, {{ user.username }}!</span>
+        <li class="nav-item user-info">
+          <!-- Show the username and total stars -->
+          <span class="nav-link">
+            Welcome, {{ user.username }} (Total Stars: {{ user.total_stars }})
+          </span>
         </li>
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
@@ -103,23 +113,66 @@
     </div>
   </nav>
 
-  <!-- Main Container -->
+  <!-- Main Container with Left Ad, Main Content, and Right Ad -->
   <div class="container mt-4">
-    <!-- Map Section -->
-    <div id="map"></div>
-
-    <!-- Business List Card -->
-    <div class="card business-card">
-      <div class="card-header">
-        <h4 class="mb-0">Local Businesses</h4>
+    <div class="row">
+      <!-- Left Ad Column: Visible on md and up -->
+      <div class="col-md-2 d-none d-md-block">
+        <div class="ad-space">
+          <h5>Ad Space</h5>
+          <img src="https://via.placeholder.com/150x300?text=Left+Ad" alt="Left Ad">
+        </div>
       </div>
-      <div class="card-body">
-        <!-- Responsive Table Container -->
-        <div class="table-responsive" id="listings"></div>
-        <!-- Pagination Controls -->
-        <nav>
-          <ul id="pagination" class="pagination"></ul>
-        </nav>
+      <!-- Center Content Column -->
+      <div class="col-md-8">
+        <!-- Map Section -->
+        <div id="map"></div>
+
+        <!-- Business List Card -->
+        <div class="card business-card">
+          <div class="card-header">
+            <h4 class="mb-0">Local Businesses</h4>
+          </div>
+          <div class="card-body">
+            <!-- Responsive Table Container -->
+            <div class="table-responsive" id="listings"></div>
+            <!-- Pagination Controls -->
+            <nav>
+              <ul id="pagination" class="pagination"></ul>
+            </nav>
+          </div>
+        </div>
+
+        <!-- Weekly Quests Card -->
+        <div class="card quest-card">
+          <div class="card-header">
+            <h4 class="mb-0">Weekly Quests</h4>
+          </div>
+          <div class="card-body">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Quest</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Visit one new place this week</td>
+                  <!-- For dummy purposes, we display a fixed status (0/1). Update later with real logic. -->
+                  <td>0/1</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- Right Ad Column: Visible on md and up -->
+      <div class="col-md-2 d-none d-md-block">
+        <div class="ad-space">
+          <h5>Ad Space</h5>
+          <img src="https://via.placeholder.com/150x300?text=Right+Ad" alt="Right Ad">
+        </div>
       </div>
     </div>
   </div>
@@ -128,7 +181,6 @@
   <div class="modal fade" id="businessModal" tabindex="-1" role="dialog" aria-labelledby="businessModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
       <form id="transactionForm" action="/add-transaction" method="POST" enctype="multipart/form-data">
-        <!-- You can choose to submit via AJAX or a normal form submission -->
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title" id="businessModalLabel">Business Details</h5>
@@ -140,10 +192,11 @@
             <!-- Hidden inputs -->
             <input type="hidden" name="location_id" id="modalLocationId" value="" />
             <input type="hidden" name="user_id" value="{{ user.id }}" />
-
+            <!-- Hidden input for review captcha response -->
+            <input type="hidden" name="review_captcha_response" id="review_captcha_response" value="">
             <div class="form-group">
               <label for="modalBusinessName">Business Name</label>
-              <input type="text" class="form-control" id="modalBusinessName" readonly />
+              <input type="text" class="form-control" id="modalBusinessName" name="businessName" readonly />
             </div>
             <div class="form-group">
               <label for="modalBusinessType">Type</label>
@@ -177,21 +230,80 @@
             </div>
           </div>
           <div class="modal-footer">
-            <!-- You can add additional instructions here -->
             <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-primary">Submit Review</button>
+            <!-- Instead of immediate submission, we intercept the button's click -->
+            <button type="submit" id="submitReviewBtn" class="btn btn-primary">Submit Review</button>
           </div>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- jQuery, Popper.js, and Bootstrap JS -->
+  <!-- Review Captcha Modal -->
+  <div class="modal fade" id="reviewCaptchaModal" tabindex="-1" role="dialog" aria-labelledby="reviewCaptchaModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="reviewCaptchaModalLabel">Review Captcha Verification</h5>
+        </div>
+        <div class="modal-body">
+          <p class="text-center">Please complete the captcha below to submit your review:</p>
+          <!-- Captcha Block for Google -->
+          <div class="captcha-block">
+            <img class="captcha-img" src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg" alt="Google">
+            <input type="text" id="reviewCaptcha1" placeholder="Enter brand name">
+          </div>
+          <!-- Captcha Block for Amazon -->
+          <div class="captcha-block">
+            <img class="captcha-img" src="https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg" alt="Amazon">
+            <input type="text" id="reviewCaptcha2" placeholder="Enter brand name">
+          </div>
+          <!-- Captcha Block for Meta -->
+          <div class="captcha-block">
+            <img class="captcha-img" src="https://upload.wikimedia.org/wikipedia/commons/7/7b/Meta_Platforms_Inc._logo.svg" alt="Meta">
+            <input type="text" id="reviewCaptcha3" placeholder="Enter brand name">
+          </div>
+          <div class="modal-error" id="reviewCaptchaError" style="display:none;">One or more answers are incorrect. Please try again.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="verifyReviewCaptcha" class="btn btn-primary">Solve Captchas</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- jQuery, Popper.js, and Bootstrap JS (using CDN) -->
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
   
   <script>
+    // Initialize Google Places Autocomplete on the home_address input.
+    function initAutocomplete() {
+      var input = document.getElementById('home_address');
+      new google.maps.places.Autocomplete(input);
+    }
+
+    // When the document is ready...
+    $(document).ready(function() {
+      // Intercept the submission of the review form.
+      $(document).on("submit", "#transactionForm", function(event) {
+        event.preventDefault();
+        console.log("Intercepted review form submission; showing review captcha modal.");
+        $("#reviewCaptchaModal").modal({backdrop: 'static', keyboard: false});
+      });
+      
+      // When the "Solve Captchas" button in the review captcha modal is clicked,
+      // set the hidden review captcha field and then submit the form.
+      $("#verifyReviewCaptcha").click(function() {
+        // Dummy logic: always accept the review captcha.
+        $("#review_captcha_response").val("solved");
+        $("#reviewCaptchaModal").modal("hide");
+        console.log("Review captcha solved; submitting review form.");
+        $("#transactionForm")[0].submit();
+      });
+    });
+    
     let map;
     // User's stored location from Flask.
     const userPos = {
@@ -254,7 +366,6 @@
           selectedTypes.push(checkbox.value);
         }
       });
-      // (If using a multi‑select dropdown, you might update the button text here.)
       applyMultiFilter();
     }
 
@@ -281,7 +392,7 @@
       renderPagination();
     }
 
-    // Render the table. Each row now gets a click event that shows the modal.
+    // Render the table. Each row gets a click event that shows the business modal.
     function renderTable(businesses) {
       const listingsDiv = document.getElementById("listings");
       listingsDiv.innerHTML = "";
@@ -313,6 +424,12 @@
       thDistance.style.verticalAlign = "middle";
       headerRow.appendChild(thDistance);
 
+      // Column 4: Stars.
+      const thStars = document.createElement("th");
+      thStars.textContent = "Stars";
+      thStars.style.verticalAlign = "middle";
+      headerRow.appendChild(thStars);
+
       thead.appendChild(headerRow);
       table.appendChild(thead);
 
@@ -337,6 +454,10 @@
         const tdDistance = document.createElement("td");
         tdDistance.textContent = business.distance ? parseFloat(business.distance).toFixed(1) : "";
         row.appendChild(tdDistance);
+
+        const tdStars = document.createElement("td");
+        tdStars.innerHTML = business.stars || "☆☆☆";
+        row.appendChild(tdStars);
 
         tbody.appendChild(row);
       });
@@ -403,11 +524,12 @@
         visitedCheckbox.checked = false;
       }
 
-      // Clear any previous file input or review selection.
+      // Clear any previous file input, review selection, or review captcha.
       document.getElementById("photoUpload").value = "";
       document.getElementById("reviewRating").value = "";
+      document.getElementById("review_captcha_response").value = "";
 
-      // Show the modal.
+      // Show the business details modal.
       $("#businessModal").modal("show");
     }
 

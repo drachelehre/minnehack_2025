@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
 from config import settings
 import googlemaps, time
 from flask_sqlalchemy import SQLAlchemy
@@ -7,7 +7,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask_migrate import Migrate
 from utils.fetch_data import get_nearby_businesses
 from utils.radius_calc import find_radius
-
+import random
 import pandas as pd
 from datetime import datetime
 
@@ -47,6 +47,23 @@ class User(UserMixin, db.Model):
         transactions = Transaction.query.filter_by(user_id=self.id).all()
         total_rewards = sum([(transaction.trans_amount +3*max(0,transaction.trans_left_a_review) )for transaction in transactions])
         self.cummulative_reward = total_rewards
+    @property
+    def total_stars(self):
+        """
+        Compute total stars from all transactions.
+        Conditions for a transaction to award stars:
+          - Star 1: if trans_amount is not 0 or -1.
+          - Star 2: if trans_visited_here is True.
+          - Star 3: if trans_left_a_review is not -1 or 0.
+        """
+        transactions = Transaction.query.filter_by(user_id=self.id).all()
+        stars = 0
+        for t in transactions:
+            star1 = 1 if t.trans_amount not in [0, -1] else 0
+            star2 = 1 if t.trans_visited_here else 0
+            star3 = 1 if t.trans_left_a_review not in [-1, 0] else 0
+            stars += (star1 + star2 + star3)
+        return stars
         
 
 @login_manager.user_loader
@@ -87,11 +104,24 @@ def load_transactions():
 # ----------------------------
 # User Registration Endpoint
 # ----------------------------
+BRAND_CAPTCHAS = [
+    {"name": "google", "image": "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg"},
+    {"name": "amazon", "image": "https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg"},
+    {"name": "meta", "image": "https://upload.wikimedia.org/wikipedia/commons/7/7b/Meta_Platforms_Inc._logo.svg"}
+]
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
+    
     if request.method == "POST":
+        # Check captcha response.
+        captcha_response = request.form.get("captcha_response", "").strip().lower()
+        if captcha_response != "solved":
+            flash("Captcha not resolved. Please solve the captcha correctly.")
+            return redirect(url_for('register'))
+        
         username = request.form.get("username")
         password = request.form.get("password")
         home_address = request.form.get("home_address")
@@ -127,9 +157,15 @@ def register():
         new_user.set_password(password)
         db.session.add(new_user)
         db.session.commit()
-        flash("Registration successful. Please log in.")
-        return redirect(url_for('login'))
+        
+        # Automatically log the new user in.
+        login_user(new_user)
+        flash("Registration successful. You are now logged in.")
+        return redirect(url_for('index'))
+    
     return render_template("register.html", google_maps_api_key=settings.google_maps_api_key)
+
+
 
 # ----------------------------
 # User Login Endpoint
@@ -168,21 +204,18 @@ def logout():
 def add_transaction():
     if request.method == "POST":
         # Get the form values.
-        location_id = request.form.get("location_id")
+        location = Location.query.filter_by(name=request.form.get("businessName")).first()
+        location_id = location.id if location else None
         user_id = request.form.get("user_id")
-        # (Optional) You might also get a hidden field for transaction amount if desired.
-        # For this example, we set a default based on the visited checkbox.
         
         # Check if the "visited" checkbox is checked.
-        # When checked, a checkbox returns "on" (or you might want to use a value attribute).
         visited_value = request.form.get("visited")
         if visited_value == "on":
             trans_visited_here = True
-            # You can set trans_amount to 1 (or 1, 2, or 3 based on your business logic).
-            trans_amount = 1  
+            # For a pure visit (without purchase), set trans_amount to 0 so it won't count as a purchase.
+            trans_amount = 0  
         else:
             trans_visited_here = False
-            # If the user did not visit, you might store a special value, e.g., -1.
             trans_amount = -1
 
         # Get the review rating. If no review is selected, default to -1.
@@ -192,11 +225,8 @@ def add_transaction():
         else:
             trans_left_a_review = -1
 
-        # Process the photo upload.
+        # Process the photo upload (not stored in our Transaction model in this example).
         photo = request.files.get("photo")
-        # (Optional) Save the photo to disk or cloud storage here.
-        # For now, we are not saving the photo in the Transaction model.
-        
         # Use the current time for the transaction.
         time_of_transaction = datetime.now()
 
@@ -215,7 +245,6 @@ def add_transaction():
         
         # Update the user’s cumulative reward.
         user = User.query.get(user_id)
-        print(user_id)
         user.calculate_rewards()
         
         # Commit the changes.
@@ -224,9 +253,9 @@ def add_transaction():
         flash("Transaction submitted successfully!")
         return redirect(url_for('index'))
     
-    # If GET is used, you might render a separate form page
-    # (but in our case the modal form is on index.html)
+    # For GET, redirect to the index (since the modal form is on index.html)
     return redirect(url_for('index'))
+
 
                                         
 
@@ -286,36 +315,56 @@ def businesses():
 
     # Fetch nearby businesses using the stored coordinates.
     results = fetch_businesses(lat, lng, required_count)
-    # print(results)
     total_results = len(results)
     total_pages = (total_results + per_page - 1) // per_page
 
     start = (page - 1) * per_page
     end = start + per_page
+    # (Optional) save dataframe for debugging
     results.to_csv('df.csv')
     
     page_results = results[start:end].to_dict(orient='records')
     print(f'page number: {page}')
-    # print(page_results)
 
     formatted = []
     for business in page_results:
-            formatted.append({
-                "name": business['name'],
-                "address": business['address'],
-                "type": business['type'],
-                "latitude": business['latitude'],
-                "longitude": business['longitude'],
-                "distance": business['distance']
-            })
-        
+        # Default stars is 0/3 if no transaction is found.
+        stars = 0
+        # Try to find a Location record matching this business name.
+        location = Location.query.filter_by(name=business['name']).first()
+        if location:
+            # print(f'++++++++++++++++++{current_user.id}+++++++++++++++++++')
+            transactions = Transaction.query.filter_by(user_id=current_user.id,
+                                                       location_id=location.id).all()
+            
+            if transactions:
+                # Condition 1: at least one transaction with a valid trans_amount.
+                star1 = 1 if any(t.trans_amount not in [0, -1] for t in transactions) else 0
+                # Condition 2: at least one transaction where the user visited.
+                star2 = 1 if any(t.trans_visited_here for t in transactions) else 0
+                # Condition 3: at least one transaction with a valid review.
+                star3 = 1 if any(t.trans_left_a_review not in [-1, 0] for t in transactions) else 0
+                stars = star1 + star2 + star3
 
+        # Otherwise, stars remains 0.
+        
+        formatted.append({
+            "name": business['name'],
+            "address": business['address'],
+            "type": business['type'],
+            "latitude": business['latitude'],
+            "longitude": business['longitude'],
+            "distance": business['distance'],
+            "stars": f"{stars}/3"  # add the stars field
+        })
+        
     return jsonify({
         "businesses": formatted,
         "current_page": page,
         "total_pages": total_pages,
         "total_results": total_results
     })
+
 
 @app.route("/businesses_table", methods=["GET"])
 @login_required
@@ -348,22 +397,61 @@ def businesses_all():
     if not user_id or int(user_id) != current_user.id:
         return jsonify({"error": "Invalid user id"}), 400
 
+    # Get the user's latitude and longitude.
     lat = current_user.latitude
     lng = current_user.longitude
+
     # Set required_count to a high number to get all nearby businesses.
     required_count = 1000  
     # fetch_businesses returns a DataFrame of results.
     results = fetch_businesses(lat, lng, required_count)
-    # Format each business as needed.
+
     formatted = []
     for business in results.to_dict(orient='records'):
+        # Default star rating is 0.
+        stars = 0
+
+        # Try to find a matching Location record using the business name.
+        location = Location.query.filter_by(name=business['name']).first()
+
+        # If the location is not in the database, create and upload it.
+        if not location:
+            location = Location(
+                name=business['name'],
+                address=business.get('address', ''),
+                business_type=business.get('type', ''),
+                latitude=business.get('latitude'),
+                longitude=business.get('longitude')
+            )
+            db.session.add(location)
+            db.session.commit()  # Commit so that location gets an ID.
+
+        # Now, query for any transactions by the current user at this location.
+        transactions = Transaction.query.filter_by(user_id=current_user.id,
+                                                   location_id=location.id).all()
+        if transactions:
+            # Condition 1: At least one transaction with trans_amount not in [0, -1].
+            star1 = 1 if any(t.trans_amount not in [0, -1] for t in transactions) else 0
+            # Condition 2: At least one transaction where trans_visited_here is True.
+            star2 = 1 if any(t.trans_visited_here for t in transactions) else 0
+            # Condition 3: At least one transaction with trans_left_a_review not in [-1, 0].
+            star3 = 1 if any(t.trans_left_a_review not in [-1, 0] for t in transactions) else 0
+            stars = star1 + star2 + star3
+
+        # Build the star string using Unicode characters:
+        filled_star = "★"  # U+2605
+        empty_star = "☆"   # U+2606
+        star_string = filled_star * stars + empty_star * (3 - stars)
+
         formatted.append({
             "name": business['name'],
             "distance": business['distance'],
-            "latitude": business['latitude'],   # for marker placement
-            "longitude": business['longitude'],  # for marker placement
-            "type": business['type']
+            "latitude": business['latitude'],
+            "longitude": business['longitude'],
+            "type": business['type'],
+            "stars": star_string
         })
+        
     return jsonify({"businesses": formatted})
 
 
