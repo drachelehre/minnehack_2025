@@ -60,7 +60,9 @@ class Transaction(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
     trans_time = db.Column(db.DateTime, default=datetime.utcnow)
-    trans_amount = db.Column(db.Float, nullable=False)
+    trans_amount = db.Column(db.Float, nullable=False) # -1 = did not buy anything 
+    trans_visited_here = db.Column(db.Boolean, nullable=False) # 1 or 0 for if they visited here
+    trans_left_a_review = db.Column(db.Integer, nullable=False) # -1 = did not leave a review
 
 def load_users():
     return User.query.all()
