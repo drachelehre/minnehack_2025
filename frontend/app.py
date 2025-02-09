@@ -34,12 +34,19 @@ class User(UserMixin, db.Model):
     home_address = db.Column(db.String(255))
     latitude = db.Column(db.Float)
     longitude = db.Column(db.Float)
-
+    cummulative_reward = db.Column(db.Float, default=0)
+    
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+    
+    def calculate_rewards(self):
+        transactions = Transaction.query.filter_by(user_id=self.id).all()
+        total_rewards = sum([transaction.amount for transaction in transactions])
+        self.cummulative_reward = total_rewards
+        
 
 @login_manager.user_loader
 def load_user(user_id):
