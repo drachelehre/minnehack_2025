@@ -5,25 +5,66 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Login</title>
   <style>
+    /* Reset default body margin/padding and set up a full-height page */
     body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
       font-family: Arial, sans-serif;
       background-color: #fff8f0;
       display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      flex-direction: column; /* We arrange top ad, center row, bottom ad */
     }
+    /* Top and bottom ad containers (center content, optional) */
+    .ad-top,
+    .ad-bottom {
+      text-align: center;
+      padding: 10px 0;
+      background-color: #f0f0f0;
+    }
+    .ad-top img,
+    .ad-bottom img {
+      max-width: 728px; /* typical leaderboard size, or your own dimension */
+      width: 100%;
+      height: auto;
+    }
+
+    /* Middle container that holds left ad, form, and right ad side by side */
+    .middle-row {
+      flex: 1; /* This expands to fill remaining vertical space */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px; /* space between columns */
+    }
+
+    /* Left and right ads (skyscraper style) */
+    .ad-left,
+    .ad-right {
+      background-color: #f0f0f0;
+      text-align: center;
+      padding: 10px;
+    }
+    .ad-left img,
+    .ad-right img {
+      max-width: 160px; /* typical “skyscraper” width or your own size */
+      width: 100%;
+      height: auto;
+    }
+
+    /* Form container in the center */
     .form-container {
       background-color: #ffffff;
       border: 2px solid #FFA500;
       border-radius: 10px;
       padding: 20px;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      width: 300px;
+      width: 300px; /* fixed width for your form */
     }
     h2 {
       color: #FFA500;
       text-align: center;
+      margin-top: 0;
     }
     input[type="text"],
     input[type="password"] {
@@ -56,23 +97,48 @@
   </style>
 </head>
 <body>
-  <div class="form-container">
-    <h2>Login</h2>
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <div class="message">
-          {% for message in messages %}
-            <p>{{ message }}</p>
-          {% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
-    <form method="post" action="{{ url_for('login') }}">
-      <input type="text" name="username" placeholder="Username" required>
-      <input type="password" name="password" placeholder="Password" required>
-      <button type="submit">Login</button>
-    </form>
-    <p style="text-align:center;">Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
+
+  <!-- Top Ad -->
+  <div class="ad-top">
+    <img src="https://via.placeholder.com/728x90?text=Top+Ad" alt="Top Ad">
   </div>
+
+  <!-- Middle row: left ad, form, right ad -->
+  <div class="middle-row">
+    <div class="ad-left">
+      <img src="https://via.placeholder.com/160x600?text=Left+Ad" alt="Left Ad">
+    </div>
+
+    <div class="form-container">
+      <h2>Login</h2>
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="message">
+            {% for message in messages %}
+              <p>{{ message }}</p>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      <form method="post" action="{{ url_for('login') }}">
+        <input type="text" name="username" placeholder="Username" required>
+        <input type="password" name="password" placeholder="Password" required>
+        <button type="submit">Login</button>
+      </form>
+      <p style="text-align:center;">Don't have an account?
+        <a href="{{ url_for('register') }}">Register here</a>
+      </p>
+    </div>
+
+    <div class="ad-right">
+      <img src="https://via.placeholder.com/160x600?text=Right+Ad" alt="Right Ad">
+    </div>
+  </div>
+
+  <!-- Bottom Ad -->
+  <div class="ad-bottom">
+    <img src="https://via.placeholder.com/728x90?text=Bottom+Ad" alt="Bottom Ad">
+  </div>
+
 </body>
 </html>
