@@ -4,7 +4,7 @@ import googlemaps, time
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-
+from flask_migrate import Migrate
 from utils.fetch_data import get_nearby_businesses
 from utils.radius_calc import find_radius
 
@@ -13,7 +13,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key_here'  # Replace with a strong secret key.
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mhdatabase2'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///user.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize the database and login manager.
@@ -28,6 +28,7 @@ gmaps = googlemaps.Client(key=settings.google_maps_api_key)
 # Database Model for Users
 # ----------------------------
 class User(UserMixin, db.Model):
+    __tablename__ = "user"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
@@ -44,7 +45,7 @@ class User(UserMixin, db.Model):
     
     def calculate_rewards(self):
         transactions = Transaction.query.filter_by(user_id=self.id).all()
-        total_rewards = sum([transaction.amount for transaction in transactions])
+        total_rewards = sum([(transaction.trans_amount +3*max(0,transaction.trans_left_a_review) )for transaction in transactions])
         self.cummulative_reward = total_rewards
         
 
@@ -53,6 +54,7 @@ def load_user(user_id):
     return User.query.get(int(user_id))
 
 class Location(db.Model):
+    __tablename__ = "location"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)
     business_type = db.Column(db.String(100))
@@ -63,6 +65,7 @@ class Location(db.Model):
     transactions = db.relationship('Transaction', backref='location', lazy=True)
 
 class Transaction(db.Model):
+    __tablename__ = "transactions"
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
@@ -70,6 +73,7 @@ class Transaction(db.Model):
     trans_amount = db.Column(db.Float, nullable=False) # -1 = did not buy anything 
     trans_visited_here = db.Column(db.Boolean, nullable=False) # 1 or 0 for if they visited here
     trans_left_a_review = db.Column(db.Integer, nullable=False) # -1 = did not leave a review
+
 
 def load_users():
     return User.query.all()
@@ -163,19 +167,70 @@ def logout():
 @login_required
 def add_transaction():
     if request.method == "POST":
+        # Get the form values.
         location_id = request.form.get("location_id")
-        # The Trasnamount is from 1, 2 or 3 
-        # add to the Transaction table with date and time, user id and location id
         user_id = request.form.get("user_id")
-        transaction_amount = request.form.get("transaction_amount")
+        # (Optional) You might also get a hidden field for transaction amount if desired.
+        # For this example, we set a default based on the visited checkbox.
+        
+        # Check if the "visited" checkbox is checked.
+        # When checked, a checkbox returns "on" (or you might want to use a value attribute).
+        visited_value = request.form.get("visited")
+        if visited_value == "on":
+            trans_visited_here = True
+            # You can set trans_amount to 1 (or 1, 2, or 3 based on your business logic).
+            trans_amount = 1  
+        else:
+            trans_visited_here = False
+            # If the user did not visit, you might store a special value, e.g., -1.
+            trans_amount = -1
+
+        # Get the review rating. If no review is selected, default to -1.
+        review_rating = request.form.get("review_rating")
+        if review_rating and review_rating.strip() != "":
+            trans_left_a_review = int(review_rating)
+        else:
+            trans_left_a_review = -1
+
+        # Process the photo upload.
+        photo = request.files.get("photo")
+        # (Optional) Save the photo to disk or cloud storage here.
+        # For now, we are not saving the photo in the Transaction model.
+        
+        # Use the current time for the transaction.
         time_of_transaction = datetime.now()
+
+        # Create the new Transaction object.
+        new_transaction = Transaction(
+            user_id=user_id,
+            location_id=location_id,
+            trans_time=time_of_transaction,
+            trans_amount=trans_amount,
+            trans_visited_here=trans_visited_here,
+            trans_left_a_review=trans_left_a_review
+        )
+
+        # Add the transaction to the session.
+        db.session.add(new_transaction)
         
-        new_transaction = Transaction(user_id=user_id,
-                                        location_id=location_id,
-                                        trans_time=time_of_transaction,
-                                        trans_amount= transaction_amount)
+        # Update the user’s cumulative reward.
+        user = User.query.get(user_id)
+        print(user_id)
+        user.calculate_rewards()
+        
+        # Commit the changes.
+        db.session.commit()
+        
+        flash("Transaction submitted successfully!")
+        return redirect(url_for('index'))
+    
+    # If GET is used, you might render a separate form page
+    # (but in our case the modal form is on index.html)
+    return redirect(url_for('index'))
+
                                         
-        
+
+ 
         
 # ----------------------------
 # Homepage (Protected)
@@ -314,5 +369,8 @@ def businesses_all():
 
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()
+        print('-------------------')
+        migrate = Migrate(app, db)
+        print(db.create_all())
+
     app.run(debug=True)
