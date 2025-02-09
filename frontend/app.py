@@ -5,6 +5,11 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
+from utils.fetch_data import get_nearby_businesses
+from utils.radius_calc import find_radius
+from geopy.distance import geodesic
+import pandas as pd
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key_here'  # Replace with a strong secret key.
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mhdatabase2'
@@ -156,24 +161,19 @@ def index():
 # ----------------------------
 def fetch_businesses(lat: float, lng: float, required_count: int):
     all_results = []
-    # Define a search radius (5 miles in meters)
-    radius = int(2 * 1609.34)
-    response = gmaps.places_nearby(
-        location=(lat, lng),
-        radius=radius,
-        keyword="business"
-    )
-    all_results.extend(response.get("results", []))
-    
-    # Follow next_page_token (if available) until we have enough results.
-    while len(all_results) < required_count and "next_page_token" in response:
-        next_page_token = response["next_page_token"]
-        time.sleep(2)  # Wait for the token to become valid.
-        response = gmaps.places_nearby(page_token=next_page_token)
-        all_results.extend(response.get("results", []))
-    
-    return all_results
+    # Define a search radius (2 miles in meters)
+    radius = int(5 * 1609.34)
+    response = get_nearby_businesses(lat, lng, radius=radius)
 
+    best_radius, counts , n_df= find_radius((lat, lng), response, threshold=17)
+    
+    print(f"Best radius: {best_radius}")
+    print(f"Counts within radius: {counts.sum()}")
+    # threshold the response with the best radius
+    
+    return n_df
+
+    
 # ----------------------------
 # Endpoint: Paginated Business Listings (Protected)
 # ----------------------------
@@ -200,21 +200,27 @@ def businesses():
 
     # Fetch nearby businesses using the stored coordinates.
     results = fetch_businesses(lat, lng, required_count)
+    # print(results)
     total_results = len(results)
     total_pages = (total_results + per_page - 1) // per_page
 
     start = (page - 1) * per_page
     end = start + per_page
-    page_results = results[start:end]
+    page_results = results[start:end].to_dict(orient='records')
+    
+    print(page_results)
 
     formatted = []
     for business in page_results:
-        loc = business.get("geometry", {}).get("location", {})
-        formatted.append({
-            "name": business.get("name"),
-            "lat": loc.get("lat"),
-            "lng": loc.get("lng")
-        })
+            formatted.append({
+                "name": business['name'],
+                "address": business['address'],
+                "type": business['type'],
+                "latitude": business['latitude'],
+                "longitude": business['longitude'],
+                "distance": business['distance']
+            })
+        
 
     return jsonify({
         "businesses": formatted,

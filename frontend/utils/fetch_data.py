@@ -1,6 +1,9 @@
 import requests
+import numpy as np 
+from geopy.distance import geodesic
+import pandas as pd
 
-def get_nearby_businesses(latitude, longitude, business_types, radius=1000):
+def get_nearby_businesses(latitude, longitude, radius=1000):
     """
     Fetches nearby businesses of multiple types using OpenStreetMap's Overpass API.
 
@@ -10,6 +13,8 @@ def get_nearby_businesses(latitude, longitude, business_types, radius=1000):
     :param radius: Search radius in meters (default: 1000m).
     :return: List of businesses with name, address, type, latitude, and longitude.
     """
+    business_types = ["fast_food", "restaurant", "convenience"]  # Modify based on OSM tags
+    encodings = {"fast_food": "0", "restaurant": "1", "convenience": "2"}
     overpass_url = "https://overpass-api.de/api/interpreter"
     
     # Build Overpass Query for multiple business types
@@ -39,7 +44,7 @@ def get_nearby_businesses(latitude, longitude, business_types, radius=1000):
         print("Error: No results found or API error")
         return []
 
-    businesses = []
+    businesses = pd.DataFrame(columns=["name", "address", "type", "latitude", "longitude", "distance"])
     for element in data["elements"]:
         tags = element.get("tags", {})
         name = tags.get("name", "Unknown Name")
@@ -47,25 +52,26 @@ def get_nearby_businesses(latitude, longitude, business_types, radius=1000):
         business_type = tags.get("amenity", tags.get("shop", "Unknown Type"))  # Detect type from OSM tags
         lat = element.get("lat", element.get("center", {}).get("lat"))  # Latitude
         lon = element.get("lon", element.get("center", {}).get("lon"))  # Longitude
+        dist = geodesic((latitude,longitude),(lat,lon)).miles # Distance in meters
+        
+        # print(dist)
+        businesses = pd.concat([businesses, pd.DataFrame([[name, address, business_type, lat, lon, dist]], columns=businesses.columns)], ignore_index=True)
 
-        businesses.append({
-            "name": name,
-            "address": address,
-            "type": business_type,
-            "latitude": lat,
-            "longitude": lon
-        })
-
+    # print(data["elements"][0])
+    # Sort buisnesses by distance
+    businesses = businesses.sort_values(by='distance').reset_index(drop=True)
+    
     return businesses
 
 
-# Example Usage:
-LATITUDE = 44.9778   # Example: Minneapolis, MN
-LONGITUDE = -93.2650
-BUSINESS_TYPES = ["fast_food", "restaurant", "convenience"]  # Modify based on OSM tags
-RADIUS = 500  # Search within 1000 meters
+if __name__ == "__main__":
+    # Example Usage:
+    LATITUDE = 44.9778   # Example: Minneapolis, MN
+    LONGITUDE = -93.2650
+    BUSINESS_TYPES = ["fast_food", "restaurant", "convenience"]  # Modify based on OSM tags
+    RADIUS = 500  # Search within 1000 meters
 
-businesses = get_nearby_businesses(LATITUDE, LONGITUDE, BUSINESS_TYPES, RADIUS)
-for i, business in enumerate(businesses, 1):
-    print(f"{i}. {business['name']} - {business['address']} (Type: {business['type']})")
-    print(f"   Location: {business['latitude']}, {business['longitude']}\n")
+    businesses = get_nearby_businesses(LATITUDE, LONGITUDE, BUSINESS_TYPES, RADIUS)
+    for i, business in enumerate(businesses, 1):
+        print(f"{i}. {business['name']} - {business['address']} (Type: {business['type']})")
+        print(f"   Location: {business['latitude']}, {business['longitude']}\n")
