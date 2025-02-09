@@ -5,6 +5,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
+from utils.fetch_data import get_nearby_businesses
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key_here'  # Replace with a strong secret key.
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mhdatabase2'
@@ -130,24 +132,15 @@ def index():
 # ----------------------------
 def fetch_businesses(lat: float, lng: float, required_count: int):
     all_results = []
-    # Define a search radius (5 miles in meters)
-    radius = int(2 * 1609.34)
-    response = gmaps.places_nearby(
-        location=(lat, lng),
-        radius=radius,
-        keyword="business"
-    )
-    all_results.extend(response.get("results", []))
+    # Define a search radius (2 miles in meters)
+    radius = int(5 * 1609.34)
+    response = get_nearby_businesses(lat, lng, radius=radius)
     
-    # Follow next_page_token (if available) until we have enough results.
-    while len(all_results) < required_count and "next_page_token" in response:
-        next_page_token = response["next_page_token"]
-        time.sleep(2)  # Wait for the token to become valid.
-        response = gmaps.places_nearby(page_token=next_page_token)
-        all_results.extend(response.get("results", []))
-    
-    return all_results
+    if not response:
+        raise Exception("Error fetching businesses.")
 
+    return response
+    
 # ----------------------------
 # Endpoint: Paginated Business Listings (Protected)
 # ----------------------------
