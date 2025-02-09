@@ -73,7 +73,7 @@
       background-color: #e59400;
       color: #fff;
     }
-    /* Dropdown checkbox styling */
+    /* Dropdown checkbox styling (if you use the multi‑select combobox) */
     .dropdown-menu {
       max-height: 200px;
       overflow-y: auto;
@@ -124,6 +124,68 @@
     </div>
   </div>
 
+  <!-- Modal for Business Details & Review -->
+  <div class="modal fade" id="businessModal" tabindex="-1" role="dialog" aria-labelledby="businessModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <form id="transactionForm" action="/add-transaction" method="POST" enctype="multipart/form-data">
+        <!-- You can choose to submit via AJAX or a normal form submission -->
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="businessModalLabel">Business Details</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <!-- Hidden inputs -->
+            <input type="hidden" name="location_id" id="modalLocationId" value="" />
+            <input type="hidden" name="user_id" value="{{ user.id }}" />
+
+            <div class="form-group">
+              <label for="modalBusinessName">Business Name</label>
+              <input type="text" class="form-control" id="modalBusinessName" readonly />
+            </div>
+            <div class="form-group">
+              <label for="modalBusinessType">Type</label>
+              <input type="text" class="form-control" id="modalBusinessType" readonly />
+            </div>
+            <div class="form-group">
+              <label for="modalDistance">Distance (miles)</label>
+              <input type="text" class="form-control" id="modalDistance" readonly />
+            </div>
+            <hr />
+            <!-- Form to add a transaction -->
+            <div class="form-group">
+              <label for="photoUpload">Upload a Photo</label>
+              <input type="file" class="form-control-file" id="photoUpload" name="photo" accept="image/*" />
+            </div>
+            <div class="form-group form-check">
+              <input type="checkbox" class="form-check-input" id="visitedCheckbox" name="visited" />
+              <label class="form-check-label" for="visitedCheckbox">I visited this business</label>
+              <small class="form-text text-muted">* Only available if you are within <span id="visitThresholdDisplay"></span> miles.</small>
+            </div>
+            <div class="form-group">
+              <label for="reviewRating">Review Rating</label>
+              <select class="form-control" id="reviewRating" name="review_rating">
+                <option value="">Select rating</option>
+                <option value="1">1 Star</option>
+                <option value="2">2 Stars</option>
+                <option value="3">3 Stars</option>
+                <option value="4">4 Stars</option>
+                <option value="5">5 Stars</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <!-- You can add additional instructions here -->
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Submit Review</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- jQuery, Popper.js, and Bootstrap JS -->
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
@@ -146,6 +208,10 @@
     // Global variables for multi-select filter.
     let allTypes = [];
     let selectedTypes = []; // array of currently selected types
+
+    // Define a threshold (in miles) for enabling the "visited" checkbox.
+    const visitThreshold = 5.0; // change this value as needed
+    document.getElementById('visitThresholdDisplay').textContent = visitThreshold;
 
     // Fetch the complete list of businesses.
     function fetchAllBusinesses() {
@@ -188,16 +254,7 @@
           selectedTypes.push(checkbox.value);
         }
       });
-      // Update the dropdown button text.
-      const dropdownButton = document.getElementById("typeDropdown");
-      if (selectedTypes.length === allTypes.length) {
-        dropdownButton.textContent = "Type";
-      } else if (selectedTypes.length === 0) {
-        dropdownButton.textContent = "None";
-      } else {
-        dropdownButton.textContent = selectedTypes.join(", ");
-      }
-      // Apply the filter.
+      // (If using a multi‑select dropdown, you might update the button text here.)
       applyMultiFilter();
     }
 
@@ -224,7 +281,7 @@
       renderPagination();
     }
 
-    // Render the table with the Type header containing a multi-select combobox.
+    // Render the table. Each row now gets a click event that shows the modal.
     function renderTable(businesses) {
       const listingsDiv = document.getElementById("listings");
       listingsDiv.innerHTML = "";
@@ -244,52 +301,10 @@
       thName.style.verticalAlign = "middle";
       headerRow.appendChild(thName);
 
-      // Column 2: Type with a dropdown combobox using checkboxes.
+      // Column 2: Type.
       const thType = document.createElement("th");
-      const dropdownDiv = document.createElement("div");
-      dropdownDiv.className = "dropdown";
-      dropdownDiv.style.display = "inline-block"; // fill header cell
-
-      // Dropdown button.
-      const dropdownButton = document.createElement("button");
-      dropdownButton.className = "btn btn-link text-white dropdown-toggle";
-      dropdownButton.type = "button";
-      dropdownButton.id = "typeDropdown";
-      dropdownButton.setAttribute("data-toggle", "dropdown");
-      dropdownButton.setAttribute("aria-haspopup", "true");
-      dropdownButton.setAttribute("aria-expanded", "false");
-      dropdownButton.style.fontWeight = "bold";
-      // Set initial text.
-      dropdownButton.textContent = selectedTypes.length === allTypes.length ? "Type" : selectedTypes.join(", ");
-      dropdownDiv.appendChild(dropdownButton);
-
-      // Dropdown menu.
-      const dropdownMenu = document.createElement("div");
-      dropdownMenu.className = "dropdown-menu";
-      
-      // Create a checkbox for each type.
-      allTypes.forEach(type => {
-        const itemDiv = document.createElement("div");
-        itemDiv.className = "dropdown-item";
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.className = "type-checkbox";
-        checkbox.value = type;
-        checkbox.id = "checkbox-" + type;
-        // Check if this type is currently selected.
-        checkbox.checked = selectedTypes.includes(type);
-        // When changed, update the filter.
-        checkbox.addEventListener("change", updateSelectedTypes);
-        const label = document.createElement("label");
-        label.setAttribute("for", "checkbox-" + type);
-        label.textContent = type;
-        itemDiv.appendChild(checkbox);
-        itemDiv.appendChild(label);
-        dropdownMenu.appendChild(itemDiv);
-      });
-      
-      dropdownDiv.appendChild(dropdownMenu);
-      thType.appendChild(dropdownDiv);
+      thType.textContent = "Type";
+      thType.style.verticalAlign = "middle";
       headerRow.appendChild(thType);
 
       // Column 3: Distance.
@@ -301,10 +316,15 @@
       thead.appendChild(headerRow);
       table.appendChild(thead);
 
-      // Build table body.
       const tbody = document.createElement("tbody");
       businesses.forEach(business => {
         const row = document.createElement("tr");
+        // Attach business data to the row for later retrieval.
+        row.dataset.business = JSON.stringify(business);
+        // When the row is clicked, show the modal with details.
+        row.addEventListener("click", function() {
+          showBusinessModal(JSON.parse(this.dataset.business));
+        });
 
         const tdName = document.createElement("td");
         tdName.textContent = business.name || "";
@@ -365,6 +385,32 @@
       }
     }
 
+    // Show the modal for the selected business.
+    function showBusinessModal(business) {
+      // Populate modal fields.
+      document.getElementById("modalLocationId").value = business.location_id || "";
+      document.getElementById("modalBusinessName").value = business.name || "";
+      document.getElementById("modalBusinessType").value = business.type || "";
+      document.getElementById("modalDistance").value = business.distance ? parseFloat(business.distance).toFixed(1) : "";
+
+      // Enable or disable the visited checkbox based on distance.
+      const visitedCheckbox = document.getElementById("visitedCheckbox");
+      const distance = parseFloat(business.distance);
+      if (!isNaN(distance) && distance <= visitThreshold) {
+        visitedCheckbox.disabled = false;
+      } else {
+        visitedCheckbox.disabled = true;
+        visitedCheckbox.checked = false;
+      }
+
+      // Clear any previous file input or review selection.
+      document.getElementById("photoUpload").value = "";
+      document.getElementById("reviewRating").value = "";
+
+      // Show the modal.
+      $("#businessModal").modal("show");
+    }
+
     // Create a marker on the map for a business.
     function createMarker(business, mapInstance) {
       if (!business.latitude || !business.longitude) return;
@@ -374,10 +420,8 @@
         title: business.name
       });
       marker.addListener("click", function () {
-        const infowindow = new google.maps.InfoWindow({
-          content: business.name
-        });
-        infowindow.open(mapInstance, marker);
+        // When marker is clicked, show the modal as well.
+        showBusinessModal(business);
       });
     }
 
@@ -390,8 +434,10 @@
       new google.maps.Marker({
         position: userPos,
         map: map,
-        title: "Your Stored Location"
+        title: "Your Stored Location",
+        icon: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
       });
+      
       fetchAllBusinesses();
     }
   </script>
