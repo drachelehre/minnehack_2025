@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Business Listings Table</title>
+  <!-- Optional: Use Bootstrap CSS for styling the table -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+  <style>
+    body {
+      padding-top: 20px;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Local Business Listings</h1>
+    <!-- The safe filter prevents Jinja2 from escaping the HTML -->
+    <div>
+      {{ table_html|safe }}
+    </div>
+    <a href="{{ url_for('index') }}" class="btn btn-primary mt-3">Back to Home</a>
+  </div>
+</body>
+</html>
