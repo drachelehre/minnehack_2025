@@ -39,6 +39,32 @@ class User(UserMixin, db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+class Location(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    business_type = db.Column(db.String(100))
+    website = db.Column(db.String(200))
+    address = db.Column(db.String(200))
+    latitude = db.Column(db.Float)
+    longitude = db.Column(db.Float)
+    transactions = db.relationship('Transaction', backref='location', lazy=True)
+
+class Transaction(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
+    trans_time = db.Column(db.DateTime, default=datetime.utcnow)
+    trans_amount = db.Column(db.Float, nullable=False)
+
+def load_users():
+    return User.query.all()
+
+def load_locations():
+    return Location.query.all()
+
+def load_transactions():
+    return Transaction.query.all()
+
 # ----------------------------
 # User Registration Endpoint
 # ----------------------------
