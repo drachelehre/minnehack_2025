@@ -59,7 +59,7 @@ class Transaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
-    trans_time = db.Column(db.DateTime, default=datetime.utcnow)
+    trans_time = db.Column(db.DateTime, default=datetime.now)
     trans_amount = db.Column(db.Float, nullable=False)
 
 def load_users():
